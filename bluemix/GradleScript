@@ -1,0 +1,17 @@
+#!/bin/bash
+# The default Gradle version is 1.12
+# To use Gradle 2.9, uncomment the following line:
+export PATH="$GRADLE2_HOME/bin:$PATH"
+a='`${document.location.hostname}'
+
+echo 'export const environment = {'\
+  'production: false,'\
+  'API_URL_AUTH:' $a':30082`,'\
+  'API_URL_PARTY:' $a':32131/party`,'\
+  'API_URL_GAME_ROUND:' $a':32131/round`,'\
+  'API_URL_GAME_WS:' $a':32131/round/ws`,'\
+  'API_URL_PLAYERS:' $a':30554/player`,'\
+  'API_URL_RANKS:' $a':30554/rank`'\
+'};'  > ./frontend/prebuild/src/environments/environment.ts
+
+./gradlew clean build
