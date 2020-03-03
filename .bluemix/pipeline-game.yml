@@ -4,7 +4,7 @@ stages:
 - name: Build
   inputs:
   - type: git
-    branch: game
+    branch: master
     service: ${GIT_REPO}    
   triggers:
   - type: commit
@@ -15,7 +15,7 @@ stages:
     build_type: shell
     script: |
       #!/bin/bash
-      ./gradlew clean build libertyPackage -c game-settings.gradle -Denv_mode=prod
+      ./gradlew clean build
 - name: Prepping Containers
   inputs:
   - type: job
@@ -225,6 +225,7 @@ stages:
       # image registry (using an IBM Cloud API Key). It also configures Helm Tiller service to later perform a deploy with Helm.
 
       # Input env variables (can be received via a pipeline environment properties.file.
+
       echo "IMAGE_NAME=${IMAGE_NAME}"
       echo "IMAGE_TAG=${IMAGE_TAG}"
       echo "REGISTRY_URL=${REGISTRY_URL}"
@@ -241,16 +242,6 @@ stages:
       # Input env variables from pipeline job
       echo "PIPELINE_KUBERNETES_CLUSTER_NAME=${PIPELINE_KUBERNETES_CLUSTER_NAME}"
       echo "CLUSTER_NAMESPACE=${CLUSTER_NAMESPACE}"
-
-      echo "=========================================================="
-      echo "CHECKING DEPLOYMENT.YML manifest"
-      #Update deployment.yml with image name
-      if [ -z "${DEPLOYMENT_FILE}" ]; then DEPLOYMENT_FILE=frontend-deployment.yml ; fi
-      if [ ! -f ${DEPLOYMENT_FILE} ]; then
-        echo -e "${red}Kubernetes deployment file '${DEPLOYMENT_FILE}' not found${no_color}"
-        exit 1
-      fi
-
       #Check cluster availability
       echo "=========================================================="
       echo "CHECKING CLUSTER readiness and namespace existence"
@@ -295,6 +286,7 @@ stages:
       echo "default serviceAccount:"
       kubectl get serviceaccount default --namespace ${CLUSTER_NAMESPACE} -o yaml
       echo -e "Namespace ${CLUSTER_NAMESPACE} authorizing with private image registry using patched default serviceAccount"
+
   - name: Deploy to Kubernetes
     type: deployer
     target:
@@ -312,6 +304,67 @@ stages:
       # ------------------
       # source: https://raw.githubusercontent.com/open-toolchain/commons/master/scripts/deploy_kubectl.sh
       # Input env variables (can be received via a pipeline environment properties.file.
+      echo "=========================================================="
+      echo "CHECKING DEPLOYMENT.YML manifest"
+      DEPLOYMENT_FILE="deployment.yml"
+      echo "Creating deployment file $DEPLOYMENT_FILE"
+      touch deployment.yml
+      # Build the deployment file
+
+      DEPLOYMENT=$(cat <<EOF
+      apiVersion: extensions/v1beta1
+      kind: Deployment
+      metadata:
+        annotations:
+          kompose.cmd: kompose convert
+          kompose.version: 1.18.0 ()
+        creationTimestamp: null
+        labels:
+          io.kompose.service: game
+        name: game
+      spec:
+        replicas: 1
+        strategy: {}
+        template:
+          metadata:
+            creationTimestamp: null
+            labels:
+              io.kompose.service: game
+          spec:
+            containers:
+            - image: libertybikes-game
+              env:
+              - name: org_libertybikes_restclient_PlayerService_mp_rest_url
+                value: http://player:8081
+              name: game
+              ports:
+              - containerPort: 8080
+              resources: {}
+            restartPolicy: Always
+      status: {}
+      ---
+      apiVersion: v1
+      kind: Service
+      metadata:
+        annotations:
+          kompose.cmd: kompose convert
+          kompose.version: 1.18.0 ()
+        creationTimestamp: null
+        labels:
+          io.kompose.service: game
+        name: game
+      spec:
+        ports:
+        - name: "8080"
+          port: 8080
+          nodePort: 30080
+        type: NodePort
+        selector:
+          io.kompose.service: game
+      EOF
+      )
+      # Substitute the variables
+      echo "$DEPLOYMENT" > $DEPLOYMENT_FILE
       echo "IMAGE_NAME=${IMAGE_NAME}"
       echo "IMAGE_TAG=${IMAGE_TAG}"
       echo "REGISTRY_URL=${REGISTRY_URL}"
