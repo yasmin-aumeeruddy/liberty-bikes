@@ -15,7 +15,7 @@ stages:
     build_type: shell
     script: |
       #!/bin/bash
-      ./gradlew clean build libertyPackage -c auth-settings.gradle -Denv_mode=prod
+      ./gradlew clean build
 - name: Prepping Containers
   inputs:
   - type: job
@@ -109,6 +109,7 @@ stages:
         echo "Content of image registry"
         bx cr images
       fi  
+
   - name: Build libertybikes-auth
     type: builder
     build_type: cr
@@ -194,6 +195,7 @@ stages:
       echo "GIT_BRANCH=${GIT_BRANCH}" >> $ARCHIVE_DIR/build.properties
       echo "File 'build.properties' created for passing env variables to subsequent pipeline jobs:"
       cat $ARCHIVE_DIR/build.properties
+
 - name: Deploy to IBM Cloud
   inputs:
   - type: job
@@ -241,15 +243,6 @@ stages:
       # Input env variables from pipeline job
       echo "PIPELINE_KUBERNETES_CLUSTER_NAME=${PIPELINE_KUBERNETES_CLUSTER_NAME}"
       echo "CLUSTER_NAMESPACE=${CLUSTER_NAMESPACE}"
-
-      echo "=========================================================="
-      echo "CHECKING DEPLOYMENT.YML manifest"
-      #Update deployment.yml with image name
-      if [ -z "${DEPLOYMENT_FILE}" ]; then DEPLOYMENT_FILE=frontend-deployment.yml ; fi
-      if [ ! -f ${DEPLOYMENT_FILE} ]; then
-        echo -e "${red}Kubernetes deployment file '${DEPLOYMENT_FILE}' not found${no_color}"
-        exit 1
-      fi
 
       #Check cluster availability
       echo "=========================================================="
@@ -304,7 +297,7 @@ stages:
     script: |
       #!/bin/bash
       # uncomment to debug the script
-      #set -x
+      # set -x
       # copy the script below into your app code repo (e.g. ./scripts/deploy_kubectl.sh) and 'source' it from your pipeline job
       #    source ./scripts/deploy_kubectl.sh
       # alternatively, you can source it from online script:
@@ -312,11 +305,80 @@ stages:
       # ------------------
       # source: https://raw.githubusercontent.com/open-toolchain/commons/master/scripts/deploy_kubectl.sh
       # Input env variables (can be received via a pipeline environment properties.file.
+
+      echo "=========================================================="
+      echo "CHECKING DEPLOYMENT.YML manifest"
+      DEPLOYMENT_FILE="deployment.yml"
+      echo "Creating deployment file $DEPLOYMENT_FILE"
+      touch deployment.yml
+      # Build the deployment file
+      echo "HIII"
+      DEPLOYMENT=$(cat <<EOF
+      apiVersion: extensions/v1beta1
+      kind: Deployment
+      metadata:
+        annotations:
+          kompose.cmd: kompose convert
+          kompose.version: 1.18.0 ()
+        creationTimestamp: null
+        labels:
+          io.kompose.service: auth
+        name: auth
+      spec:
+        replicas: 1
+        strategy: {}
+        template:
+          metadata:
+            creationTimestamp: null
+            labels:
+              io.kompose.service: auth
+          spec:
+            containers:
+            - image: libertybikes-auth
+              env:
+              - name: auth_url
+                value: https://auth:8482/auth-service
+              - name: frontend_url
+                value: http://frontend:12000/login
+              name: auth
+              ports:
+              - containerPort: 8082
+              - containerPort: 8482
+              resources: {}
+            restartPolicy: Always
+      status: {}
+      ---
+      apiVersion: v1
+      kind: Service
+      metadata:
+        annotations:
+          kompose.cmd: kompose convert
+          kompose.version: 1.18.0 ()
+        creationTimestamp: null
+        labels:
+          io.kompose.service: auth
+        name: auth
+      spec:
+        ports:
+        - name: "8082"
+          port: 8082
+          nodePort: 30082
+        - name: "8482"
+          port: 8482
+          nodePort: 30482
+        type: NodePort
+        selector:
+          io.kompose.service: auth
+      EOF
+      )
+
+      # Substitute the variables
+      echo "$DEPLOYMENT" > $DEPLOYMENT_FILE
+
       echo "IMAGE_NAME=${IMAGE_NAME}"
       echo "IMAGE_TAG=${IMAGE_TAG}"
       echo "REGISTRY_URL=${REGISTRY_URL}"
       echo "REGISTRY_NAMESPACE=${REGISTRY_NAMESPACE}"
-      echo "DEPLOYMENT_FILE=${DEPLOYMENT_FILE}"
 
       #View build properties
       # cat build.properties
@@ -330,6 +392,7 @@ stages:
       echo "CLUSTER_NAMESPACE=${CLUSTER_NAMESPACE}"
 
       echo "=========================================================="
+
       echo "DEPLOYING using manifest"
       echo -e "Updating ${DEPLOYMENT_FILE} with image name: ${REGISTRY_URL}/${REGISTRY_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
       if [ -z "${DEPLOYMENT_FILE}" ]; then DEPLOYMENT_FILE=deployment.yml ; fi
@@ -404,4 +467,3 @@ stages:
         echo ""
         echo -e "VIEW THE APPLICATION AT: http://${IP_ADDR}:${PORT}"
       fi
-
