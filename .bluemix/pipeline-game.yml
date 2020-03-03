@@ -310,7 +310,6 @@ stages:
       echo "Creating deployment file $DEPLOYMENT_FILE"
       touch deployment.yml
       # Build the deployment file
-
       DEPLOYMENT=$(cat <<EOF
       apiVersion: extensions/v1beta1
       kind: Deployment
@@ -363,8 +362,10 @@ stages:
           io.kompose.service: game
       EOF
       )
+
       # Substitute the variables
       echo "$DEPLOYMENT" > $DEPLOYMENT_FILE
+
       echo "IMAGE_NAME=${IMAGE_NAME}"
       echo "IMAGE_TAG=${IMAGE_TAG}"
       echo "REGISTRY_URL=${REGISTRY_URL}"
@@ -457,4 +458,5 @@ stages:
         echo ""
         echo -e "VIEW THE APPLICATION AT: http://${IP_ADDR}:${PORT}"
       fi
+
 
