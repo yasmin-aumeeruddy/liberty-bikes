@@ -15,7 +15,24 @@ stages:
     build_type: shell
     script: |
       #!/bin/bash
-      ./gradlew clean build libertyPackage -c frontend-settings.gradle -Denv_mode=prod
+      # Build the deployment file
+      ENVIRONMENT_FILE="frontend/prebuild/src/environments/environment.ts"
+      ENVIRONMENT=$(cat <<'EOF'
+      export const environment = {
+          production: true,
+          API_URL_AUTH: `http://${document.location.hostname}:30082`,
+          API_URL_PARTY: `http://${document.location.hostname}:30080/party`,
+          API_URL_GAME_ROUND: `http://${document.location.hostname}:30080/round`,
+          API_URL_GAME_WS: `ws://${document.location.hostname}:30080/round/ws`,
+          API_URL_PLAYERS: `http://${document.location.hostname}:30081/player`,
+          API_URL_RANKS: `http://${document.location.hostname}:30081/rank`
+        };
+      EOF
+      )
+      echo "$ENVIRONMENT" > $ENVIRONMENT_FILE
+      cat frontend/prebuild/src/environments/environment.ts
+      ./gradlew clean build 
+
 - name: Prepping Containers
   inputs:
   - type: job
