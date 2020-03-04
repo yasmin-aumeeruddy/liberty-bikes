@@ -126,6 +126,7 @@ stages:
         echo "Content of image registry"
         bx cr images
       fi  
+
   - name: Build libertybikes-frontend
     type: builder
     build_type: cr
