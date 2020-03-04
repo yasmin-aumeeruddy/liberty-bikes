@@ -1,6 +1,7 @@
 # Liberty Bikes
 [![Build Status](https://travis-ci.org/OpenLiberty/liberty-bikes.svg?branch=master)](https://travis-ci.org/OpenLiberty/liberty-bikes)
 
+[![Create toolchain](https://cloud.ibm.com/devops/graphics/create_toolchain_button.png)](https://cloud.ibm.com/devops/setup/deploy?repository=https://github.com/yasmin-aumeeruddy/liberty-bikes&env_id=ibm:yp:eu-de)
 
 ![Image of Liberty Bikes game](https://user-images.githubusercontent.com/1577201/47185063-0d307c00-d2f2-11e8-87f5-997ecf22c3d4.png)
 
