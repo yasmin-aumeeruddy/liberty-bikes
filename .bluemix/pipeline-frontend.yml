@@ -261,15 +261,6 @@ stages:
       echo "PIPELINE_KUBERNETES_CLUSTER_NAME=${PIPELINE_KUBERNETES_CLUSTER_NAME}"
       echo "CLUSTER_NAMESPACE=${CLUSTER_NAMESPACE}"
 
-      echo "=========================================================="
-      echo "CHECKING DEPLOYMENT.YML manifest"
-      #Update deployment.yml with image name
-      if [ -z "${DEPLOYMENT_FILE}" ]; then DEPLOYMENT_FILE=frontend-deployment.yml ; fi
-      if [ ! -f ${DEPLOYMENT_FILE} ]; then
-        echo -e "${red}Kubernetes deployment file '${DEPLOYMENT_FILE}' not found${no_color}"
-        exit 1
-      fi
-
       #Check cluster availability
       echo "=========================================================="
       echo "CHECKING CLUSTER readiness and namespace existence"
@@ -314,6 +305,7 @@ stages:
       echo "default serviceAccount:"
       kubectl get serviceaccount default --namespace ${CLUSTER_NAMESPACE} -o yaml
       echo -e "Namespace ${CLUSTER_NAMESPACE} authorizing with private image registry using patched default serviceAccount"
+
   - name: Deploy to Kubernetes
     type: deployer
     target:
@@ -331,6 +323,63 @@ stages:
       # ------------------
       # source: https://raw.githubusercontent.com/open-toolchain/commons/master/scripts/deploy_kubectl.sh
       # Input env variables (can be received via a pipeline environment properties.file.
+      echo "=========================================================="
+      echo "CHECKING DEPLOYMENT.YML manifest"
+      DEPLOYMENT_FILE="deployment.yml"
+      echo "Creating deployment file $DEPLOYMENT_FILE"
+      touch deployment.yml
+      # Build the deployment file
+      DEPLOYMENT=$(cat <<EOF
+      apiVersion: extensions/v1beta1
+      kind: Deployment
+      metadata:
+        annotations:
+          kompose.cmd: kompose convert
+          kompose.version: 1.18.0 ()
+        creationTimestamp: null
+        labels:
+          io.kompose.service: frontend
+        name: frontend
+      spec:
+        replicas: 1
+        strategy: {}
+        template:
+          metadata:
+            creationTimestamp: null
+            labels:
+              io.kompose.service: frontend
+          spec:
+            containers:
+            - image: libertybikes-frontend
+              name: frontend
+              ports:
+              - containerPort: 12000
+              resources: {}
+            restartPolicy: Always
+      status: {}
+      ---
+      apiVersion: v1
+      kind: Service
+      metadata:
+        annotations:
+          kompose.cmd: kompose convert
+          kompose.version: 1.18.0 ()
+        creationTimestamp: null
+        labels:
+          io.kompose.service: frontend
+        name: frontend
+      spec:
+        ports:
+        - name: "12000"
+          port: 12000
+        type: NodePort
+        selector:
+          io.kompose.service: frontend
+      EOF
+      )
+      # Substitute the variables
+      echo "$DEPLOYMENT" > $DEPLOYMENT_FILE
+
       echo "IMAGE_NAME=${IMAGE_NAME}"
       echo "IMAGE_TAG=${IMAGE_TAG}"
       echo "REGISTRY_URL=${REGISTRY_URL}"
@@ -423,4 +472,5 @@ stages:
         echo ""
         echo -e "VIEW THE APPLICATION AT: http://${IP_ADDR}:${PORT}"
       fi
+
 
