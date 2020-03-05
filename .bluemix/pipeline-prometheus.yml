@@ -1,1 +1,197 @@
+---
+defaultBaseImageVersion: 'latest'
+stages:
+- name: Build
+  inputs:
+  - type: git
+    branch: master
+    service: ${GIT_REPO}    
+  triggers:
+  - type: commit
+  jobs:
+  - name: Build 
+    type: builder
+    artifact_dir: ''
+    build_type: shell
+    script: |
+      #!/bin/bash
+      ./gradlew clean build
+- name: Prepping Containers
+  inputs:
+  - type: job
+    stage: Build
+    job: Build
+  triggers:
+  - type: stage
+  properties:
+  - name: DOCKER_ROOT
+    value: ./
+    type: text
+  - name: DOCKER_FILE
+    value: Dockerfile
+    type: text
+  jobs:
+  - name: Pre-build check
+    type: builder
+    build_type: cr
+    target:
+      region_id: ${REGISTRY_REGION_ID}
+      api_key: ${API_KEY}
+    namespace: ${REGISTRY_NAMESPACE}
+    image_name: ${CF_APP_NAME}
+    script: |
+      #!/bin/bash
+      echo -e "Build environment variables:"
+      echo "REGISTRY_URL=${REGISTRY_URL}"
+      echo "REGISTRY_NAMESPACE=${REGISTRY_NAMESPACE}"
+      echo "IMAGE_NAME=${IMAGE_NAME}"
+      echo "BUILD_NUMBER=${BUILD_NUMBER}"
 
+      # Learn more about the available environment variables at:
+      # https://cloud.ibm.com/docs/services/ContinuousDelivery?topic=ContinuousDelivery-deliverypipeline_environment#deliverypipeline_environment
+
+      # To review or change build options use:
+      # ibmcloud cr build --help
+
+      echo -e "FROM prom/prometheus:v2.4.0\nADD monitoring/prometheus/prometheus.yml /etc/prometheus\nEXPOSE 9090" > Dockerfile
+      DOCKER_FILE=Dockerfile
+
+      echo -e "Checking for Dockerfile at the repository root"
+      if [ -f Dockerfile ]; then 
+         echo "Dockerfile found"
+      else
+          echo "Dockerfile not found"
+          exit 1
+      fi
+
+      echo -e "Building container image"
+      set -x
+      ibmcloud cr build -t $REGISTRY_URL/$REGISTRY_NAMESPACE/$IMAGE_NAME:$BUILD_NUMBER .
+      set +x
+ - name: Deploy to IBM Cloud
+  inputs:
+  - type: job
+    stage: Prepping Containers
+    job: Build libertybikes-player
+  triggers:
+  - type: stage
+  properties:
+  - name: buildprops
+    value: build.properties
+    type: file
+  - name: CLUSTER_NAMESPACE
+    value: ${PROD_CLUSTER_NAMESPACE}
+    type: text
+  - name: DEPLOYMENT_FILE
+    value: ./player-service/player-deployment.yml
+    type: text      
+  jobs:
+  - name: Deploy to Kubernetes
+    type: deployer
+    target:
+      region_id: ${PROD_REGION_ID}
+      api_key: ${API_KEY}
+      kubernetes_cluster: ${PROD_CLUSTER_NAME}
+    script: |
+      #!/bin/bash
+      #set -x
+
+      # Use this script as a starting point to create your own deployment.yml
+
+      # Make sure the cluster is running and get the ip_address
+      ip_addr=$(ibmcloud cs workers $PIPELINE_KUBERNETES_CLUSTER_NAME | grep normal | awk '{ print $2 }')
+      if [ -z $ip_addr ]; then
+        echo "$PIPELINE_KUBERNETES_CLUSTER_NAME not created or workers not ready"
+        exit 1
+      fi
+
+      # Initialize script variables
+      echo "1"
+      NAME="$IDS_PROJECT_NAME"
+      IMAGE="$PIPELINE_IMAGE_URL"
+      echo "2"
+      if [ -z IMAGE ]; then
+        echo "$IMAGE not set. If using $PIPELINE_IMAGE_URL this variable is only configured when a "Container Registry" build job is used as the stage input."
+        exit 1
+      fi
+      PORT=9090
+      echo "Deploy environment variables:"
+      echo "NAME=$NAME"
+      echo "IMAGE=$IMAGE"
+      echo "PORT=$PORT"
+
+      DEPLOYMENT_FILE="deployment.yml"
+      echo "Creating deployment file $DEPLOYMENT_FILE"
+      # Build the deployment file
+      DEPLOYMENT=$(cat <<EOF''
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: $NAME
+      spec:
+        replicas: 1
+        selector:
+          matchLabels:
+            app: $NAME
+        template:
+          metadata:
+            labels:
+              app: $NAME
+          spec:
+            containers:
+            - name: $NAME
+              image: $IMAGE
+              imagePullPolicy: IfNotPresent
+              ports:
+              - containerPort: $PORT
+      ---
+      apiVersion: v1
+      kind: Service
+      metadata:
+        name: $NAME
+        labels:
+          app: $NAME
+      spec:
+        type: NodePort
+        ports:
+          - port: $PORT
+        selector:
+          app: $NAME
+      EOF
+      )
+      echo "4"
+
+      # Substitute the variables
+      echo "$DEPLOYMENT" > $DEPLOYMENT_FILE
+      sed -i 's/$NAME/'"$NAME"'/g' $DEPLOYMENT_FILE
+      sed -i 's=$IMAGE='"$IMAGE"'=g' $DEPLOYMENT_FILE
+      sed -i 's/$PORT/'"$PORT"'/g' $DEPLOYMENT_FILE
+      echo "5"
+      # Show the file that is about to be executed
+      echo ""
+      echo "DEPLOYING USING MANIFEST:"
+      echo "cat $DEPLOYMENT_FILE"
+      cat $DEPLOYMENT_FILE
+      echo ""
+
+      # Execute the file
+      echo "KUBERNETES COMMAND:"
+      echo "kubectl apply -f $DEPLOYMENT_FILE"
+      kubectl apply -f $DEPLOYMENT_FILE
+      echo ""
+
+      echo ""
+      echo "DEPLOYED SERVICE:"
+      kubectl describe services $NAME
+      echo ""
+      echo "DEPLOYED PODS:"
+      kubectl describe pods --selector app=$NAME
+      echo ""
+
+      # Show the IP address and the PORT of the running app
+      port=$(kubectl get services | grep "$NAME " | sed 's/.*:\([0-9]*\).*/\1/g')
+      echo "RUNNING APPLICATION:"
+      echo "URL=http://$ip_addr"
+      echo "PORT=$port"
+      echo ""
+      echo "$NAME running at: http://$ip_addr:$port"
