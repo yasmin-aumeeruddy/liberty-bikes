@@ -13,160 +13,9 @@ stages:
     type: builder
     artifact_dir: ''
     build_type: shell
-    target:
-      region_id: ${REGISTRY_REGION_ID}
-      api_key: ${API_KEY}
-    namespace: ${REGISTRY_NAMESPACE}
-    image_name: ${CF_APP_NAME}
     script: |
       #!/bin/bash
-      cd monitoring/prometheus
-      echo "Creating prometheus file"
-
-      rm -r prometheus.yml
-
-      # Build the yaml file
-      YAML_FILE="prometheus.yml"
-      echo "Creating config file $YAML_FILE"
-
-      # Build the deployment file
-      FILE_CONTENT=$(cat <<EOF''
-      global:
-        scrape_interval:     15s
-
-        external_labels:
-          monitor: 'game-service-monitor'
-
-      scrape_configs:
-      - job_name: 'game-service'
-        scrape_interval: 5s
-        metrics_path: '/metrics/'
-        static_configs:
-        - targets: ['173.193.82.62:32131']
-        scheme: http
-        tls_config:
-          insecure_skip_verify: true
-      - job_name: 'player-service'
-        scrape_interval: 5s
-        metrics_path: '/metrics/'
-        static_configs:
-        - targets: ['173.193.82.62:30554']
-        scheme: http
-        tls_config:
-          insecure_skip_verify: true
-      - job_name: 'auth-service'
-        scrape_interval: 5s
-        metrics_path: '/metrics/'
-        static_configs:
-        - targets: ['173.193.82.62:30082']
-        scheme: http
-        tls_config:
-          insecure_skip_verify: true
-      - job_name: 'frontend'
-        scrape_interval: 5s
-        metrics_path: '/metrics/'
-        static_configs:
-        - targets: ['173.193.82.62:30935']
-        scheme: http
-        tls_config:
-          insecure_skip_verify: true
-
-
-      EOF
-      )
-
-
-      echo "$FILE_CONTENT" > $YAML_FILE
-
-      cat prometheus.yml 
-
-
-      echo -e "FROM prom/prometheus:v2.4.0\nADD prometheus.yml /etc/prometheus\nEXPOSE 9090" > Dockerfile
-
-      cat Dockerfile
-
-      echo "REGISTRY_URL=${REGISTRY_URL}"
-            echo "REGISTRY_NAMESPACE=${REGISTRY_NAMESPACE}"
-            echo "IMAGE_NAME=${IMAGE_NAME}"
-            echo "ARCHIVE_DIR=${ARCHIVE_DIR}"
-            echo "DOCKER_ROOT=${DOCKER_ROOT}"
-            echo "DOCKER_FILE=${DOCKER_FILE}"
-            # View build properties
-            if [ -f build.properties ]; then 
-              echo "build.properties:"
-              cat build.properties
-            else 
-              echo "build.properties : not found"
-            fi 
-            # also run 'env' command to find all available env variables
-            # or learn more about the available environment variables at:
-            # https://console.bluemix.net/docs/services/ContinuousDelivery/pipeline_deploy_var.html#deliverypipeline_environment
-            echo "=========================================================="
-            echo "Checking for Dockerfile at the repository root"
-            if [ -z "${DOCKER_ROOT}" ]; then DOCKER_ROOT=. ; fi
-            if [ -z "${DOCKER_FILE}" ]; then DOCKER_FILE=Dockerfile ; fi
-            if [ -f ${DOCKER_ROOT}/${DOCKER_FILE} ]; then 
-              echo -e "Dockerfile found at: ${DOCKER_FILE}"
-            else
-              echo "Dockerfile not found at: ${DOCKER_FILE}"
-              exit 1
-            fi
-            echo "Linting Dockerfile"
-            npm install -g dockerlint
-            dockerlint -f ${DOCKER_ROOT}/${DOCKER_FILE}
-            echo "=========================================================="
-            echo "Checking registry current plan and quota"
-            bx cr plan
-            bx cr quota
-            echo "If needed, discard older images using: bx cr image-rm"
-            echo "Checking registry namespace: ${REGISTRY_NAMESPACE}"
-            NS=$( bx cr namespaces | grep ${REGISTRY_NAMESPACE} ||: )
-            if [ -z "${NS}" ]; then
-              echo "Registry namespace ${REGISTRY_NAMESPACE} not found, creating it."
-              bx cr namespace-add ${REGISTRY_NAMESPACE}
-              echo "Registry namespace ${REGISTRY_NAMESPACE} created."
-            else 
-              echo "Registry namespace ${REGISTRY_NAMESPACE} found."
-            fi
-            echo -e "Existing images in registry"
-            bx cr images --restrict ${REGISTRY_NAMESPACE}
-
-
-            IMAGE_TAG=${TIMESTAMP}
-            if [ ! -z "${GIT_COMMIT}" ]; then
-              GIT_COMMIT_SHORT=$( echo ${GIT_COMMIT} | head -c 8 ) 
-              IMAGE_TAG=${GIT_COMMIT_SHORT}-${IMAGE_TAG}
-            fi
-            if [ ! -z "${GIT_BRANCH}" ]; then IMAGE_TAG=${GIT_BRANCH}-${IMAGE_TAG} ; fi
-            IMAGE_TAG=${BUILD_NUMBER}-${IMAGE_TAG}
-            echo "=========================================================="
-            echo -e "BUILDING CONTAINER IMAGE: ${IMAGE_NAME}:${IMAGE_TAG}"
-            if [ -z "${DOCKER_ROOT}" ]; then DOCKER_ROOT=. ; fi
-            if [ -z "${DOCKER_FILE}" ]; then DOCKER_FILE=${DOCKER_ROOT}/Dockerfile ; fi
-            set -x
-            bx cr build -t ${REGISTRY_URL}/${REGISTRY_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_ROOT} -f ${DOCKER_FILE}
-            set +x
-            bx cr image-inspect ${REGISTRY_URL}/${REGISTRY_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}
-            # Set PIPELINE_IMAGE_URL for subsequent jobs in stage (e.g. Vulnerability Advisor)
-            export PIPELINE_IMAGE_URL="$REGISTRY_URL/$REGISTRY_NAMESPACE/$IMAGE_NAME:$IMAGE_TAG"
-            echo "=========================================================="
-            KEEP=1
-            echo -e "PURGING REGISTRY, only keeping last ${KEEP} image(s) based on image digests"
-            COUNT=0
-            LIST=$( bx cr images --restrict ${REGISTRY_NAMESPACE}/${IMAGE_NAME} --no-trunc --format '__not_implemented__ __not_implemented__@__not_implemented__' | sort -r -u | awk '{print $2}' | sed '$ d' )
-            while read -r IMAGE_URL ; do
-              if [[ "$COUNT" -lt "$KEEP" ]]; then
-                echo "Keeping image digest: ${IMAGE_URL}"
-              else
-                bx cr image-rm "${IMAGE_URL}"
-              fi
-              COUNT=$((COUNT+1)) 
-            done <<< "$LIST"
-            if [[ "$COUNT" -gt 1 ]]; then
-              echo "Content of image registry"
-              bx cr images
-            fi  
-            ./gradlew clean build
+      ./gradlew clean build
 - name: Prepping Containers
   inputs:
   - type: job
@@ -176,7 +25,7 @@ stages:
   - type: stage
   properties:
   - name: DOCKER_ROOT
-    value: ./auth-service
+    value: ./player-service
     type: text
   - name: DOCKER_FILE
     value: Dockerfile
@@ -261,7 +110,7 @@ stages:
         bx cr images
       fi  
 
-  - name: Build libertybikes-auth
+  - name: Build libertybikes-player
     type: builder
     build_type: cr
     target:
@@ -351,7 +200,7 @@ stages:
   inputs:
   - type: job
     stage: Prepping Containers
-    job: Build libertybikes-auth
+    job: Build libertybikes-player
   triggers:
   - type: stage
   properties:
@@ -362,7 +211,7 @@ stages:
     value: ${PROD_CLUSTER_NAMESPACE}
     type: text
   - name: DEPLOYMENT_FILE
-    value: ./auth-service/auth-deployment.yml
+    value: ./player-service/player-deployment.yml
     type: text      
   jobs:
   - name: Pre-deploy check
@@ -378,6 +227,7 @@ stages:
       # image registry (using an IBM Cloud API Key). It also configures Helm Tiller service to later perform a deploy with Helm.
 
       # Input env variables (can be received via a pipeline environment properties.file.
+
       echo "IMAGE_NAME=${IMAGE_NAME}"
       echo "IMAGE_TAG=${IMAGE_TAG}"
       echo "REGISTRY_URL=${REGISTRY_URL}"
@@ -394,7 +244,6 @@ stages:
       # Input env variables from pipeline job
       echo "PIPELINE_KUBERNETES_CLUSTER_NAME=${PIPELINE_KUBERNETES_CLUSTER_NAME}"
       echo "CLUSTER_NAMESPACE=${CLUSTER_NAMESPACE}"
-
       #Check cluster availability
       echo "=========================================================="
       echo "CHECKING CLUSTER readiness and namespace existence"
@@ -439,6 +288,7 @@ stages:
       echo "default serviceAccount:"
       kubectl get serviceaccount default --namespace ${CLUSTER_NAMESPACE} -o yaml
       echo -e "Namespace ${CLUSTER_NAMESPACE} authorizing with private image registry using patched default serviceAccount"
+
   - name: Deploy to Kubernetes
     type: deployer
     target:
@@ -448,7 +298,7 @@ stages:
     script: |
       #!/bin/bash
       # uncomment to debug the script
-      # set -x
+      #set -x
       # copy the script below into your app code repo (e.g. ./scripts/deploy_kubectl.sh) and 'source' it from your pipeline job
       #    source ./scripts/deploy_kubectl.sh
       # alternatively, you can source it from online script:
@@ -456,14 +306,13 @@ stages:
       # ------------------
       # source: https://raw.githubusercontent.com/open-toolchain/commons/master/scripts/deploy_kubectl.sh
       # Input env variables (can be received via a pipeline environment properties.file.
-
       echo "=========================================================="
       echo "CHECKING DEPLOYMENT.YML manifest"
       DEPLOYMENT_FILE="deployment.yml"
       echo "Creating deployment file $DEPLOYMENT_FILE"
       touch deployment.yml
       # Build the deployment file
-      echo "HIII"
+
       DEPLOYMENT=$(cat <<EOF
       apiVersion: extensions/v1beta1
       kind: Deployment
@@ -473,8 +322,8 @@ stages:
           kompose.version: 1.18.0 ()
         creationTimestamp: null
         labels:
-          io.kompose.service: auth
-        name: auth
+          io.kompose.service: player
+        name: player
       spec:
         replicas: 1
         strategy: {}
@@ -482,19 +331,13 @@ stages:
           metadata:
             creationTimestamp: null
             labels:
-              io.kompose.service: auth
+              io.kompose.service: player
           spec:
             containers:
-            - image: libertybikes-auth
-              env:
-              - name: auth_url
-                value: https://auth:8482/auth-service
-              - name: frontend_url
-                value: http://frontend:12000/login
-              name: auth
+            - image: libertybikes-player
+              name: player
               ports:
-              - containerPort: 8082
-              - containerPort: 8482
+              - containerPort: 8081
               resources: {}
             restartPolicy: Always
       status: {}
@@ -507,29 +350,25 @@ stages:
           kompose.version: 1.18.0 ()
         creationTimestamp: null
         labels:
-          io.kompose.service: auth
-        name: auth
+          io.kompose.service: player
+        name: player
       spec:
         ports:
-        - name: "8082"
-          port: 8082
-          nodePort: 30082
-        - name: "8482"
-          port: 8482
-          nodePort: 30482
+        - name: "8081"
+          port: 8081
+          nodePort: 30081
         type: NodePort
         selector:
-          io.kompose.service: auth
+          io.kompose.service: player
       EOF
       )
-
       # Substitute the variables
       echo "$DEPLOYMENT" > $DEPLOYMENT_FILE
-
       echo "IMAGE_NAME=${IMAGE_NAME}"
       echo "IMAGE_TAG=${IMAGE_TAG}"
       echo "REGISTRY_URL=${REGISTRY_URL}"
       echo "REGISTRY_NAMESPACE=${REGISTRY_NAMESPACE}"
+      echo "DEPLOYMENT_FILE=${DEPLOYMENT_FILE}"
 
       #View build properties
       # cat build.properties
@@ -543,7 +382,6 @@ stages:
       echo "CLUSTER_NAMESPACE=${CLUSTER_NAMESPACE}"
 
       echo "=========================================================="
-
       echo "DEPLOYING using manifest"
       echo -e "Updating ${DEPLOYMENT_FILE} with image name: ${REGISTRY_URL}/${REGISTRY_NAMESPACE}/${IMAGE_NAME}:${IMAGE_TAG}"
       if [ -z "${DEPLOYMENT_FILE}" ]; then DEPLOYMENT_FILE=deployment.yml ; fi
@@ -618,3 +456,5 @@ stages:
         echo ""
         echo -e "VIEW THE APPLICATION AT: http://${IP_ADDR}:${PORT}"
       fi
+
+
