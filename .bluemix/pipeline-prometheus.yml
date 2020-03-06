@@ -13,6 +13,11 @@ stages:
     type: builder
     artifact_dir: ''
     build_type: shell
+    target:
+      region_id: ${REGISTRY_REGION_ID}
+      api_key: ${API_KEY}
+    namespace: ${REGISTRY_NAMESPACE}
+    image_name: ${CF_APP_NAME}
     script: |
       #!/bin/bash
       cd monitoring/prometheus
