@@ -99,11 +99,11 @@ services:
     parameters:
       services:
         - repo
-      name: 'liberty-bikes-au'
+      name: 'liberty-bikes-prometheus'
       ui-pipeline: true
       configuration:
         content:
-          $text: pipeline-auth.yml
+          $text: pipeline-prometheus.yml
         env:
           GIT_REPO: repo
           CF_APP_NAME: '{{form.pipeline.parameters.app-name}}'
