@@ -38,7 +38,7 @@ stages:
         scrape_interval: 5s
         metrics_path: '/metrics/'
         static_configs:
-        - targets: ['173.193.82.62:32131']
+        - targets: ['${document.location.hostname}:32131']
         scheme: http
         tls_config:
           insecure_skip_verify: true
@@ -46,7 +46,7 @@ stages:
         scrape_interval: 5s
         metrics_path: '/metrics/'
         static_configs:
-        - targets: ['173.193.82.62:30554']
+        - targets: ['${document.location.hostname}:30554']
         scheme: http
         tls_config:
           insecure_skip_verify: true
@@ -54,7 +54,7 @@ stages:
         scrape_interval: 5s
         metrics_path: '/metrics/'
         static_configs:
-        - targets: ['173.193.82.62:30082']
+        - targets: ['${document.location.hostname}:30082']
         scheme: http
         tls_config:
           insecure_skip_verify: true
@@ -62,7 +62,7 @@ stages:
         scrape_interval: 5s
         metrics_path: '/metrics/'
         static_configs:
-        - targets: ['173.193.82.62:30935']
+        - targets: ['${document.location.hostname}:30935']
         scheme: http
         tls_config:
           insecure_skip_verify: true
