@@ -55,7 +55,7 @@ stages:
       region_id: ${REGISTRY_REGION_ID}
       api_key: ${API_KEY}
     namespace: ${REGISTRY_NAMESPACE}
-    image_name: ${CF_APP_NAME}
+    image_name: libertybikes-frontend
     script: |
       #!/bin/bash
       echo "REGISTRY_URL=${REGISTRY_URL}"
@@ -134,7 +134,7 @@ stages:
       region_id: ${REGISTRY_REGION_ID}
       api_key: ${API_KEY}
     namespace: ${REGISTRY_NAMESPACE}
-    image_name: ${CF_APP_NAME}
+    image_name: libertybikes-frontend
     script: |
       #!/bin/bash
 
