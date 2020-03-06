@@ -96,7 +96,7 @@ stages:
       region_id: ${REGISTRY_REGION_ID}
       api_key: ${API_KEY}
     namespace: ${REGISTRY_NAMESPACE}
-    image_name: ${CF_APP_NAME}
+    image_name: libertybikes-prometheus
     script: |
       #!/bin/bash
       echo -e "FROM prom/prometheus:v2.4.0\nADD prometheus.yml /etc/prometheus\nEXPOSE 9090" > Dockerfile
@@ -170,7 +170,7 @@ stages:
         bx cr images
       fi  
 
-  - name: Build libertybikes-player
+  - name: Build libertybikes-prometheus
     type: builder
     build_type: cr
     target:
@@ -261,7 +261,7 @@ stages:
   inputs:
   - type: job
     stage: Prepping Containers
-    job: Build libertybikes-player
+    job: Build libertybikes-prometheus
   triggers:
   - type: stage
   properties:
@@ -272,7 +272,7 @@ stages:
     value: ${PROD_CLUSTER_NAMESPACE}
     type: text
   - name: DEPLOYMENT_FILE
-    value: ./player-service/player-deployment.yml
+    value: ./player-service/prometheus-deployment.yml
     type: text      
   jobs:
   - name: Pre-deploy check
@@ -383,8 +383,8 @@ stages:
           kompose.version: 1.18.0 ()
         creationTimestamp: null
         labels:
-          io.kompose.service: player
-        name: player
+          io.kompose.service: prometheus
+        name: prometheus
       spec:
         replicas: 1
         strategy: {}
@@ -392,13 +392,13 @@ stages:
           metadata:
             creationTimestamp: null
             labels:
-              io.kompose.service: player
+              io.kompose.service: prometheus
           spec:
             containers:
-            - image: libertybikes-player
+            - image: libertybikes-prometheus
               name: player
               ports:
-              - containerPort: 8081
+              - containerPort: 9090
               resources: {}
             restartPolicy: Always
       status: {}
@@ -411,16 +411,16 @@ stages:
           kompose.version: 1.18.0 ()
         creationTimestamp: null
         labels:
-          io.kompose.service: player
+          io.kompose.service:prometheus
         name: player
       spec:
         ports:
-        - name: "8081"
-          port: 8081
+        - name: "9090"
+          port: 9090
           nodePort: 30081
         type: NodePort
         selector:
-          io.kompose.service: player
+          io.kompose.service: prometheus
       EOF
       )
       # Substitute the variables
