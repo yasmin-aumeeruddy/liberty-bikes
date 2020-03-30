@@ -116,7 +116,7 @@ stages:
       region_id: ${REGISTRY_REGION_ID}
       api_key: ${API_KEY}
     namespace: ${REGISTRY_NAMESPACE}
-    image_name: libertybikes-game
+    image_name: liberty-bikes-game
     script: |
       #!/bin/bash
 
