@@ -262,7 +262,7 @@ stages:
         template:
           metadata:
             labels:
-        app: $NAME
+             app: $NAME
           spec:
             containers:
             - name: $NAME
