@@ -111,6 +111,12 @@ stages:
       fi  
 
   - name: Build liberty-bikes-player
+    inputs:
+    - type: job
+      stage: Build
+      job: Build
+    triggers:
+    - type: stage
     type: builder
     build_type: cr
     target:
@@ -200,7 +206,7 @@ stages:
   inputs:
   - type: job
     stage: Prepping Containers
-    job: Build libertybikes-player
+    job: Build liberty-bikes-player
   triggers:
   - type: stage
   properties:
