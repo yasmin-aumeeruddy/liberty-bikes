@@ -109,7 +109,6 @@ stages:
         echo "Content of image registry"
         bx cr images
       fi  
-
   - name: Build liberty-bikes-auth
     type: builder
     build_type: cr
@@ -195,7 +194,6 @@ stages:
       echo "GIT_BRANCH=${GIT_BRANCH}" >> $ARCHIVE_DIR/build.properties
       echo "File 'build.properties' created for passing env variables to subsequent pipeline jobs:"
       cat $ARCHIVE_DIR/build.properties
-
 - name: Deploy to IBM Cloud
   inputs:
   - type: job
