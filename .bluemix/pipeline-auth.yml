@@ -12,7 +12,7 @@ stages:
   - name: Build 
     type: builder
     artifact_dir: ''
-    build_type: shell
+    build_type: gradle
     script: |
       #!/bin/bash
       ./gradlew clean build
@@ -38,7 +38,7 @@ stages:
       region_id: ${REGISTRY_REGION_ID}
       api_key: ${API_KEY}
     namespace: ${REGISTRY_NAMESPACE}
-    image_name: libertybikes-auth
+    image_name: liberty-bikes-auth
     script: |
       #!/bin/bash
       echo "REGISTRY_URL=${REGISTRY_URL}"
@@ -110,14 +110,14 @@ stages:
         bx cr images
       fi  
 
-  - name: Build libertybikes-auth
+  - name: Build liberty-bikes-auth
     type: builder
     build_type: cr
     target:
       region_id: ${REGISTRY_REGION_ID}
       api_key: ${API_KEY}
     namespace: ${REGISTRY_NAMESPACE}
-    image_name: libertybikes-auth
+    image_name: liberty-bikes-auth
     script: |
       #!/bin/bash
 
@@ -200,7 +200,7 @@ stages:
   inputs:
   - type: job
     stage: Prepping Containers
-    job: Build libertybikes-auth
+    job: Build liberty-bikes-auth
   triggers:
   - type: stage
   properties:
@@ -214,7 +214,7 @@ stages:
     value: ./auth-service/auth-deployment.yml
     type: text      
   jobs:
-  - name: Pre-deploy check
+- name: Deploy to Kubernetes
     type: deployer
     target:
       region_id: ${PROD_REGION_ID}
@@ -222,119 +222,50 @@ stages:
       kubernetes_cluster: ${PROD_CLUSTER_NAME}
     script: |
       #!/bin/bash
+      #set -x
+      # Use this script as a starting point to create your own deployment.yml
 
-      # This script checks the IBM Cloud Kubernetes Service cluster is ready, has a namespace configured with access to the private
-      # image registry (using an IBM Cloud API Key). It also configures Helm Tiller service to later perform a deploy with Helm.
-
-      # Input env variables (can be received via a pipeline environment properties.file.
-      echo "IMAGE_NAME=${IMAGE_NAME}"
-      echo "IMAGE_TAG=${IMAGE_TAG}"
-      echo "REGISTRY_URL=${REGISTRY_URL}"
-      echo "REGISTRY_NAMESPACE=${REGISTRY_NAMESPACE}"
-
-      # View build properties
-      if [ -f build.properties ]; then 
-        echo "build.properties:"
-        cat build.properties
-      else 
-        echo "build.properties : not found"
-      fi 
-
-      # Input env variables from pipeline job
-      echo "PIPELINE_KUBERNETES_CLUSTER_NAME=${PIPELINE_KUBERNETES_CLUSTER_NAME}"
-      echo "CLUSTER_NAMESPACE=${CLUSTER_NAMESPACE}"
-
-      #Check cluster availability
-      echo "=========================================================="
-      echo "CHECKING CLUSTER readiness and namespace existence"
-      IP_ADDR=$( bx cs workers ${PIPELINE_KUBERNETES_CLUSTER_NAME} | grep normal | awk '{ print $2 }' )
-      if [ -z "${IP_ADDR}" ]; then
-        echo -e "${PIPELINE_KUBERNETES_CLUSTER_NAME} not created or workers not ready"
+      # Make sure the cluster is running and get the ip_address
+      ip_addr=$(ibmcloud cs workers $PIPELINE_KUBERNETES_CLUSTER_NAME | grep normal | awk '{ print $2 }')
+      if [ -z $ip_addr ]; then
+        echo "$PIPELINE_KUBERNETES_CLUSTER_NAME not created or workers not ready"
         exit 1
       fi
-      echo "Configuring cluster namespace"
-      if kubectl get namespace ${CLUSTER_NAMESPACE}; then
-        echo -e "Namespace ${CLUSTER_NAMESPACE} found."
-      else
-        kubectl create namespace ${CLUSTER_NAMESPACE}
-        echo -e "Namespace ${CLUSTER_NAMESPACE} created."
-      fi
 
-      # Grant access to private image registry from namespace $CLUSTER_NAMESPACE
-      # reference https://console.bluemix.net/docs/containers/cs_cluster.html#bx_registry_other
-      echo "=========================================================="
-      echo -e "CONFIGURING ACCESS to private image registry from namespace ${CLUSTER_NAMESPACE}"
-      IMAGE_PULL_SECRET_NAME="ibmcloud-toolchain-${PIPELINE_TOOLCHAIN_ID}-${REGISTRY_URL}"
-
-      echo -e "Checking for presence of ${IMAGE_PULL_SECRET_NAME} imagePullSecret for this toolchain"
-      if ! kubectl get secret ${IMAGE_PULL_SECRET_NAME} --namespace ${CLUSTER_NAMESPACE}; then
-        echo -e "${IMAGE_PULL_SECRET_NAME} not found in ${CLUSTER_NAMESPACE}, creating it"
-        # for Container Registry, docker username is 'token' and email does not matter
-        kubectl --namespace ${CLUSTER_NAMESPACE} create secret docker-registry ${IMAGE_PULL_SECRET_NAME} --docker-server=${REGISTRY_URL} --docker-password=${PIPELINE_BLUEMIX_API_KEY} --docker-username=iamapikey --docker-email=a@b.com
-      else
-        echo -e "Namespace ${CLUSTER_NAMESPACE} already has an imagePullSecret for this toolchain."
+      # Initialize script variables
+      NAME="auth"
+      IMAGE="$PIPELINE_IMAGE_URL"
+      if [ -z IMAGE ]; then
+        echo "$IMAGE not set. If using $PIPELINE_IMAGE_URL this variable is only configured when a "Container Registry" build job is used as the stage input."
+        exit 1
       fi
-      SERVICE_ACCOUNT=$(kubectl get serviceaccount default  -o json --namespace ${CLUSTER_NAMESPACE} )
-      if ! echo ${SERVICE_ACCOUNT} | jq -e '. | has("imagePullSecrets")' > /dev/null ; then
-        kubectl patch --namespace ${CLUSTER_NAMESPACE} serviceaccount/default -p '{"imagePullSecrets":[{"name":"'"${IMAGE_PULL_SECRET_NAME}"'"}]}'
-      else
-        if echo ${SERVICE_ACCOUNT} | jq -e '.imagePullSecrets[] | select(.name=="'"${IMAGE_PULL_SECRET_NAME}"'")' > /dev/null ; then 
-          echo -e "Pull secret already found in default serviceAccount"
-        else
-          echo "Inserting toolchain pull secret into default serviceAccount"
-          kubectl patch --namespace ${CLUSTER_NAMESPACE} serviceaccount/default --type='json' -p='[{"op":"add","path":"/imagePullSecrets/-","value":{"name": "'"${IMAGE_PULL_SECRET_NAME}"'"}}]'
-        fi
-      fi
-      echo "default serviceAccount:"
-      kubectl get serviceaccount default --namespace ${CLUSTER_NAMESPACE} -o yaml
-      echo -e "Namespace ${CLUSTER_NAMESPACE} authorizing with private image registry using patched default serviceAccount"
-  - name: Deploy to Kubernetes
-    type: deployer
-    target:
-      region_id: ${PROD_REGION_ID}
-      api_key: ${API_KEY}
-      kubernetes_cluster: ${PROD_CLUSTER_NAME}
-    script: |
-      #!/bin/bash
-      # uncomment to debug the script
-      # set -x
-      # copy the script below into your app code repo (e.g. ./scripts/deploy_kubectl.sh) and 'source' it from your pipeline job
-      #    source ./scripts/deploy_kubectl.sh
-      # alternatively, you can source it from online script:
-      #    source <(curl -sSL "https://raw.githubusercontent.com/open-toolchain/commons/master/scripts/deploy_kubectl.sh")
-      # ------------------
-      # source: https://raw.githubusercontent.com/open-toolchain/commons/master/scripts/deploy_kubectl.sh
-      # Input env variables (can be received via a pipeline environment properties.file.
+      echo ""
+      echo "Deploy environment variables:"
+      echo "NAME=$NAME"
+      echo "IMAGE=$IMAGE"
+      echo ""
 
-      echo "=========================================================="
-      echo "CHECKING DEPLOYMENT.YML manifest"
       DEPLOYMENT_FILE="deployment.yml"
       echo "Creating deployment file $DEPLOYMENT_FILE"
-      touch deployment.yml
+
       # Build the deployment file
-      echo "HIII"
-      DEPLOYMENT=$(cat <<EOF
-      apiVersion: extensions/v1beta1
+      DEPLOYMENT=$(cat <<EOF''
+      apiVersion: apps/v1
       kind: Deployment
       metadata:
-        annotations:
-          kompose.cmd: kompose convert
-          kompose.version: 1.18.0 ()
-        creationTimestamp: null
-        labels:
-          io.kompose.service: auth
-        name: auth
+        name: $NAME
       spec:
         replicas: 1
-        strategy: {}
+        selector:
+          matchLabels:
+            app: $NAME
         template:
           metadata:
-            creationTimestamp: null
             labels:
-              io.kompose.service: auth
+             app: $NAME
           spec:
             containers:
-            - image: libertybikes-auth
+            - image: $IMAGE
               env:
               - name: auth_url
                 value: https://auth:8482/auth-service
@@ -356,8 +287,8 @@ stages:
           kompose.version: 1.18.0 ()
         creationTimestamp: null
         labels:
-          io.kompose.service: auth
-        name: auth
+          io.kompose.service: $NAME
+        name: $NAME
       spec:
         ports:
         - name: "8082"
@@ -368,7 +299,7 @@ stages:
           nodePort: 30482
         type: NodePort
         selector:
-          io.kompose.service: auth
+          io.kompose.service: 4NAME
       EOF
       )
 
