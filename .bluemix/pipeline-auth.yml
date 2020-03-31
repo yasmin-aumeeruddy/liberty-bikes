@@ -297,7 +297,7 @@ stages:
           nodePort: 30482
         type: NodePort
         selector:
-          io.kompose.service: 4NAME
+          io.kompose.service: $NAME
       EOF
       )
 
