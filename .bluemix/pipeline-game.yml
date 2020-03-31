@@ -12,7 +12,7 @@ stages:
   - name: Build 
     type: builder
     artifact_dir: ''
-    build_type: shell
+    build_type: gradle
     script: |
       #!/bin/bash
       ./gradlew clean build
