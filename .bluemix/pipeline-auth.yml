@@ -109,20 +109,14 @@ stages:
         echo "Content of image registry"
         bx cr images
       fi  
-   - name: Build liberty-bikes-player
-    inputs:
-    - type: job
-      stage: Build
-      job: Build
-    triggers:
-    - type: stage
+  - name: Build liberty-bikes-auth
     type: builder
     build_type: cr
     target:
       region_id: ${REGISTRY_REGION_ID}
       api_key: ${API_KEY}
     namespace: ${REGISTRY_NAMESPACE}
-    image_name: ${CF_APP_NAME}
+    image_name: liberty-bikes-auth
     script: |
       #!/bin/bash
 
@@ -218,7 +212,7 @@ stages:
     value: ./auth-service/auth-deployment.yml
     type: text      
   jobs:
-- name: Deploy to Kubernetes
+  - name: Deploy to Kubernetes
     type: deployer
     target:
       region_id: ${PROD_REGION_ID}
