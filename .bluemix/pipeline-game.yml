@@ -109,7 +109,7 @@ stages:
         echo "Content of image registry"
         bx cr images
       fi  
-  - name: Build libertybikes-game
+  - name: Build liberty-bikes-game
     type: builder
     build_type: cr
     target:
