@@ -289,20 +289,16 @@ stages:
       apiVersion: v1
       kind: Service
       metadata:
-        annotations:
-          kompose.cmd: kompose convert
-          kompose.version: 1.18.0 ()
-        creationTimestamp: null
+        name: $NAME
         labels:
-          io.kompose.service: $NAME
-        name: frontend
+          app: $NAME
       spec:
-        ports:
-        - name: "12000"
-          port: 12000
         type: NodePort
+        ports:
+          - port: 12000
+            nodePort: 30012
         selector:
-          io.kompose.service: $NAME
+          app: $NAME
       EOF
       )
       # Substitute the variables
