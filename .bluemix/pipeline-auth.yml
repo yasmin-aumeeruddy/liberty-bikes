@@ -295,7 +295,8 @@ stages:
 
       # Substitute the variables
       echo "$DEPLOYMENT" > $DEPLOYMENT_FILE
-
+      sed -i 's/$NAME/'"$NAME"'/g' $DEPLOYMENT_FILE
+      sed -i 's=$IMAGE='"$IMAGE"'=g' $DEPLOYMENT_FILE
       echo "IMAGE_NAME=${IMAGE_NAME}"
       echo "IMAGE_TAG=${IMAGE_TAG}"
       echo "REGISTRY_URL=${REGISTRY_URL}"
