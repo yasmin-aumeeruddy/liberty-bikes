@@ -1,6 +1,6 @@
 ---
 defaultBaseImageVersion: 'latest'
-stages: Build
+stages: 
 - name: Build
   inputs:
   - type: git
