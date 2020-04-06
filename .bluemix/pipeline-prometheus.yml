@@ -24,7 +24,7 @@ stages:
       # Build the yaml file
       YAML_FILE="prometheus.yml"
       echo "Creating config file $YAML_FILE"
-      HOST= http://169.60.26.222
+      HOST=http://169.60.26.222
       # Build the deployment file
       FILE_CONTENT=$(cat <<EOF''
       global:
