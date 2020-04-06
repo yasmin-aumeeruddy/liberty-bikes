@@ -11,7 +11,6 @@ stages:
   jobs:
   - name: Build 
     type: builder
-    artifact_dir: ''
     build_type: cr
     script: |
       #!/bin/bash
