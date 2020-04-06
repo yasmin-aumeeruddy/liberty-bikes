@@ -96,7 +96,7 @@ stages:
       region_id: ${REGISTRY_REGION_ID}
       api_key: ${API_KEY}
     namespace: ${REGISTRY_NAMESPACE}
-    image_name: libertybikes-prometheus
+    image_name: liberty-bikes-prometheus
     script: |
       #!/bin/bash
       echo -e "FROM prom/prometheus:v2.4.0\nADD prometheus.yml /etc/prometheus\nEXPOSE 9090" > Dockerfile
