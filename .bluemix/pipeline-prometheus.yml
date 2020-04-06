@@ -169,7 +169,7 @@ stages:
   inputs:
   - type: job
     stage: Build
-    job: Build
+    job: Build liberty-bikes-prometheus
   triggers:
   - type: stage
   properties:
