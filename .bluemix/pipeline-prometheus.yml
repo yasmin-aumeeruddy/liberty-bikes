@@ -12,7 +12,7 @@ stages:
   - name: Build 
     type: builder
     artifact_dir: ''
-    build_type: shell
+    build_type: gradle
     script: |
       #!/bin/bash
       #!/bin/bash
@@ -24,7 +24,7 @@ stages:
       # Build the yaml file
       YAML_FILE="prometheus.yml"
       echo "Creating config file $YAML_FILE"
-
+      HOST= http://169.60.26.222
       # Build the deployment file
       FILE_CONTENT=$(cat <<EOF''
       global:
@@ -38,7 +38,7 @@ stages:
         scrape_interval: 5s
         metrics_path: '/metrics/'
         static_configs:
-        - targets: ['${document.location.hostname}:30080']
+        - targets: ['$HOST:30080']
         scheme: http
         tls_config:
           insecure_skip_verify: true
@@ -46,7 +46,7 @@ stages:
         scrape_interval: 5s
         metrics_path: '/metrics/'
         static_configs:
-        - targets: ['${document.location.hostname}:30081']
+        - targets: ['$HOST:30081']
         scheme: http
         tls_config:
           insecure_skip_verify: true
@@ -54,7 +54,7 @@ stages:
         scrape_interval: 5s
         metrics_path: '/metrics/'
         static_configs:
-        - targets: ['${document.location.hostname}:30082']
+        - targets: ['$HOST:30082']
         scheme: http
         tls_config:
           insecure_skip_verify: true
@@ -62,7 +62,7 @@ stages:
         scrape_interval: 5s
         metrics_path: '/metrics/'
         static_configs:
-        - targets: ['${document.location.hostname}:30012']
+        - targets: ['$HOST:30012']
         scheme: http
         tls_config:
           insecure_skip_verify: true
