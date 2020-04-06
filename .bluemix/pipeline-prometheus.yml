@@ -1,17 +1,21 @@
 ---
 defaultBaseImageVersion: 'latest'
-stages:
-- name: Build
+stages: Build
   inputs:
   - type: git
     branch: master
-    service: ${GIT_REPO}    
+    service: ${GIT_REPO}
   triggers:
   - type: commit
   jobs:
-  - name: Build 
+  - name: Build liberty-bikes-prometheus
     type: builder
     build_type: cr
+    target:
+      region_id: ${REGISTRY_REGION_ID}
+      api_key: ${API_KEY}
+    namespace: ${REGISTRY_NAMESPACE}
+    image_name: liberty-bikes-prometheus
     script: |
       #!/bin/bash
       cd monitoring/prometheus
