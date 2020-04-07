@@ -43,7 +43,7 @@ stages:
       )
 
       echo "$FILE_CONTENT" > $CONFIG_FILE
-
+      HOST=http://169.60.26.222/
       # Build the yaml file
       YAML_FILE="datasource.yml"
       echo "Creating config file $YAML_FILE"
@@ -71,7 +71,7 @@ stages:
           # <int> org id. will default to orgId 1 if not specified
           orgId: 1
           # <string> url
-          url: http://169.60.26.222:30300
+          url: $HOST:30300
           # <string> database password, if used
           password:
           # <string> database user, if used
