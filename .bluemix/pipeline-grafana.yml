@@ -16,7 +16,7 @@ stages:
       region_id: ${REGISTRY_REGION_ID}
       api_key: ${API_KEY}
     namespace: ${REGISTRY_NAMESPACE}
-    image_name: liberty-bikes-prometheus
+    image_name: liberty-bikes-grafana
     script: |
       #!/bin/bash
       cd monitoring
