@@ -337,5 +337,16 @@ http://player-service.mybluemix.net/" > game-service/wlp/usr/servers/game-servic
 # Push the entire server directory into Cloud Foundry
 cf push "${CF_APP}" -p "game-service/wlp/usr/servers/game-service"
 ```
+## Deploy to IBM Cloud
+
+Please note that you'll need an IBM Cloud account for this. If you don't have one, you can sign up for free at [https://cloud.ibm.com/registration](https://cloud.ibm.com/registration).
+
+Clicking the button below automatically deploys the current `liberty-bikes/liberty-bikes` services `auth`, `player`, `frontend` and `game`.
+
+To monitor your services successfully, change the IP address stored in the `$HOST` to the public IP of your worker node. This variable can be found in the configuration script of the Build stages of `liberty-bikes-prometheus` and `liberty-bikes-grafana`.
+
+[![Create toolchain](https://cloud.ibm.com/devops/graphics/create_toolchain_button.png)](https://cloud.ibm.com/devops/setup/deploy?repository=https://github.com/openliberty/liberty-bikes&env_id=ibm:yp:eu-de)
 
 Originally cloned from https://github.com/aguibert/coms319-project4
+
+
