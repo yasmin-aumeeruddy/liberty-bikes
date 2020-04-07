@@ -46,9 +46,7 @@ stages:
       
       #Change this IP to monitor your services
       HOST=http://169.60.26.222
-      
-      
-      
+     
       # Build the yaml file
       YAML_FILE="datasource.yml"
       echo "Creating config file $YAML_FILE"
