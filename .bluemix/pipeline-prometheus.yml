@@ -76,7 +76,7 @@ stages:
 
 
       echo "$FILE_CONTENT" > $YAML_FILE
-
+      sed -i 's=$HOST='"$HOST"'=g' $YAML_FILE
       cat prometheus.yml 
 
 
