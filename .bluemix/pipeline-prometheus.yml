@@ -21,7 +21,10 @@ stages:
       #!/bin/bash
       cd monitoring/prometheus
       echo "Creating prometheus file"
+      
+      #Change the IP is this variable to monitor your services
       HOST=169.60.26.222
+      
       rm -r prometheus.yml
 
       # Build the yaml file
